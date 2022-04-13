@@ -1,0 +1,233 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Product Management";
+}
+
+
+<div class="row">
+    <div class="col-md-12" style="margin-bottom:50px">
+        <button class="btn btn-success" data-toggle="modal" data-target="#AddProductModal">New Product</button>
+        <button class="btn btn-warning" data-toggle="modal" data-target="#AddCategoryModal">New Category</button>
+    </div>
+
+    <div class="col-md-12">
+        <table id="product-grid" class="table dt-table-hover" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+</div>
+
+<div id="AddProductModal" class="modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modal title</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col">
+                        <input id="productName" type="text" class="form-control" placeholder="Name">
+                    </div>
+                    <div class="col">
+                        <input id="productPrice" type="number" class="form-control" placeholder="Price">
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col">
+                        <select id="productCategory" class="form-control">
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" type="button" onclick="AddProduct()">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="AddCategoryModal" class="modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modal title</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+
+                <div class="row mb-4">
+                    <div class="col">
+                        <input id="categoryName" type="text" class="form-control" placeholder="Name">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" type="button" onclick="AddCategory()">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts{
+
+    <script>
+        var dataTable;
+
+        toastr.options = {
+            "closeButton": false,
+            "debug": false,
+            "newestOnTop": false,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": false,
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        }
+
+        $(document).ready(function () {
+            GetProducts();
+            GetCategories();
+        });
+
+        function GetProducts() {
+            dataTable = $('#product-grid').DataTable({
+                "ajax": {
+                    "url": "/api/product/ProductList",
+                    "type": "GET",
+                    "datatype": "json",
+                    beforeSend: function () {
+                        toastr.info("Products are loading, please wait !");
+                    },
+                    complete: function (data) {
+                        toastr.clear();
+                    }
+                },
+                "ordering": false,
+                "pageLength": 25,
+                "columns": [
+                    { 'data': 'cat' },
+                    { 'data': 'nam' },
+                    { 'data': 'pri' },
+                ],
+                width: "100%"
+            });
+        }
+
+        function GetCategories() {
+            $.ajax({
+                url: "/api/product/CategorytList/",
+                type: "GET",
+                data: "{}",
+                success: function (_data) {
+                    var data = _data.data;
+                    var markup = "<option value='-1'>Choose category</option>";
+                    for (var x = 0; x < data.length; x++) {
+                        markup += "<option value=" + data[x].id + ">" + data[x].nam + "</option>";
+                    }
+                    $("#productCategory").html(markup).show();
+                }
+            });
+        }
+
+        const ProductName = document.getElementById("productName"),
+            ProductPrice = document.getElementById("productPrice"),
+            ProductCategory = document.getElementById("productCategory"),
+            CategoryName = document.getElementById("categoryName");
+
+        function AddProduct() {
+            if (ProductName.value == "") {
+                toastr.error("Please write product name !");
+                return;
+            }
+            if (ProductPrice.value == "") {
+                toastr.error("Please write product price !");
+                return;
+            }
+            if (ProductCategory.value == "-1") {
+                toastr.error("Please select product category !");
+                return;
+            }
+
+            $.ajax({
+                type: 'POST',
+                url: "/api/product/ProductAdd",
+                data: JSON.stringify({
+                    "Name": ProductName.value,
+                    "Price": parseFloat(ProductPrice.value),
+                    "CategoryId": ProductCategory.value
+                }),
+                dataType: "json",
+                contentType: "application/json",
+                success: function (data) {
+                    console.log(data);
+                    if (data.success) {
+                        toastr.success(data.message);
+                        dataTable.ajax.reload();
+                        $('#AddProductModal').modal('hide');
+                    }
+                    if (data.error) {
+                        toastr.error(data.message);
+                    }
+                },
+                error: function (e) {
+                    console.log(e);
+                }
+            });
+        }
+
+        function AddCategory() {
+            if (CategoryName.value == "") {
+                toastr.error("Please write category name !");
+                return;
+            }
+
+            $.ajax({
+                type: 'POST',
+                url: "/api/product/CategoryAdd",
+                data: JSON.stringify({
+                    "Name": CategoryName.value,
+                }),
+                dataType: "json",
+                contentType: "application/json",
+                success: function (data) {
+                    console.log(data);
+                    if (data.success) {
+                        toastr.success(data.message);
+                        GetCategories();
+                        $('#AddCategoryModal').modal('hide');
+                    }
+                    if (data.error) {
+                        toastr.error(data.message);
+                    }
+                },
+                error: function (e) {
+                    console.log(e);
+                }
+            });
+        }
+
+    </script>
+}
